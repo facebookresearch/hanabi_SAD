@@ -20,7 +20,6 @@ find_package(PythonLibs 3.7 REQUIRED)
 find_package(Torch REQUIRED)
 
 
-# message(${CMAKE_CURRENT_SOURCE_DIR}/../)
 add_subdirectory(
   ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/pybind11 third_party/pybind11
 )
@@ -33,7 +32,7 @@ add_library(_rela
 target_include_directories(_rela PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_include_directories(_rela PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(_rela PUBLIC ${PYTHON_INCLUDE_DIRS})
-target_link_libraries(_rela PUBLIC ${TORCH_LIBRARIES})
+target_link_libraries(_rela PUBLIC torch)
 
 
 # python lib

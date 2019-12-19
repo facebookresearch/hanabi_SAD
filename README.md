@@ -84,8 +84,6 @@ git clone --recursive https://github.com/facebookresearch/hanabi.git
 cd hanabi
 mkdir build
 cd build
-# next line may produce an error 'Target "torch" not found.',
-# which can be ignored
 cmake ..
 make -j10
 ```
