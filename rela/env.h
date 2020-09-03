@@ -1,15 +1,11 @@
-// Copyright (c) Facebook, Inc. and its affiliates.
-// All rights reserved.
-//
-// This source code is licensed under the license found in the
-// LICENSE file in the root directory of this source tree.
-//
+// Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+
 #pragma once
 
 #include <future>
 #include <vector>
 
-#include "rela/types.h"
+#include "rela/tensor_dict.h"
 #include "rela/utils.h"
 
 namespace rela {
@@ -24,13 +20,15 @@ class Env {
   virtual TensorDict reset() = 0;
 
   // return 'obs', 'reward', 'terminal'
-  virtual std::tuple<TensorDict, float, bool> step(
-      const TensorDict& action) = 0;
+  virtual std::tuple<TensorDict, float, bool> step(const TensorDict& action) = 0;
 
   virtual bool terminated() const = 0;
 };
 
 // a "container" as if it is a vector of envs
+template <
+    typename EnvType,
+    typename = std::enable_if_t<std::is_base_of<Env, EnvType>::value>>
 class VectorEnv {
  public:
   VectorEnv() = default;
@@ -38,7 +36,7 @@ class VectorEnv {
   virtual ~VectorEnv() {
   }
 
-  void append(std::shared_ptr<Env> env) {
+  void append(std::shared_ptr<EnvType> env) {
     envs_.push_back(std::move(env));
   }
 
@@ -48,17 +46,17 @@ class VectorEnv {
 
   // reset envs that have reached end of terminal
   virtual TensorDict reset(const TensorDict& input) {
-    TensorVecDict batch;
+    std::vector<TensorDict> batch;
     for (size_t i = 0; i < envs_.size(); i++) {
       if (envs_[i]->terminated()) {
         TensorDict obs = envs_[i]->reset();
-        utils::tensorVecDictAppend(batch, obs);
+        batch.push_back(obs);
       } else {
         assert(!input.empty());
-        utils::tensorVecDictAppend(batch, utils::tensorDictIndex(input, i));
+        batch.push_back(tensor_dict::index(input, i));
       }
     }
-    return utils::tensorDictJoin(batch, 0);
+    return tensor_dict::stack(batch, 0);
   }
 
   // return 'obs', 'reward', 'terminal'
@@ -67,29 +65,32 @@ class VectorEnv {
   // terminal: bool tensor [num_envs]
   virtual std::tuple<TensorDict, torch::Tensor, torch::Tensor> step(
       const TensorDict& action) {
-    TensorVecDict batchObs;
-    torch::Tensor batchReward = torch::zeros(envs_.size(), torch::kFloat32);
-    torch::Tensor batchTerminal = torch::zeros(envs_.size(), torch::kBool);
+    std::vector<TensorDict> vObs;
+    std::vector<float> vReward(envs_.size());
+    std::vector<float> vTerminal(envs_.size());
     for (size_t i = 0; i < envs_.size(); i++) {
       TensorDict obs;
       float reward;
       bool terminal;
 
-      auto a = utils::tensorDictIndex(action, i);
+      auto a = tensor_dict::index(action, i);
       std::tie(obs, reward, terminal) = envs_[i]->step(a);
 
-      utils::tensorVecDictAppend(batchObs, obs);
-      batchReward[i] = reward;
-      batchTerminal[i] = terminal;
+      vObs.push_back(obs);
+      vReward[i] = reward;
+      vTerminal[i] = (float)terminal;
     }
-    return std::make_tuple(
-        utils::tensorDictJoin(batchObs, 0), batchReward, batchTerminal);
+    auto batchObs = tensor_dict::stack(vObs, 0);
+    auto batchReward = torch::tensor(vReward);
+    auto batchTerminal = torch::tensor(vTerminal).to(torch::kBool);
+    return std::make_tuple(batchObs, batchReward, batchTerminal);
   }
 
   virtual bool anyTerminated() const {
     for (size_t i = 0; i < envs_.size(); i++) {
-      if (envs_[i]->terminated())
+      if (envs_[i]->terminated()) {
         return true;
+      }
     }
     return false;
   }
@@ -103,6 +104,6 @@ class VectorEnv {
   }
 
  private:
-  std::vector<std::shared_ptr<Env>> envs_;
+  std::vector<std::shared_ptr<EnvType>> envs_;
 };
 }  // namespace rela

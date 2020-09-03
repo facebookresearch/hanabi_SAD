@@ -1,13 +1,7 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-#
 import os
 from collections import defaultdict, Counter
 from datetime import datetime
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 
 
 class ValueStats:
@@ -70,10 +64,10 @@ class MultiCounter:
         self.stats = defaultdict(lambda: ValueStats())
         self.total_count = 0
         self.max_key_len = 0
-        if root is not None:
-            self.tb_writer = SummaryWriter(os.path.join(root, "stat.tb"))
-        else:
-            self.tb_writer = None
+        # if root is not None:
+        #     self.tb_writer = SummaryWriter(os.path.join(root, "stat.tb"))
+        # else:
+        #     self.tb_writer = None
 
     def __getitem__(self, key):
         if len(key) > self.max_key_len:
@@ -116,5 +110,5 @@ class MultiCounter:
             info = str(global_counter) + ":" + k
             print(v.summary(info=info.ljust(self.max_key_len + 4)))
 
-            if self.tb_writer is not None:
-                self.tb_writer.add_scalar(k, v.mean(), global_counter)
+            # if self.tb_writer is not None:
+            #     self.tb_writer.add_scalar(k, v.mean(), global_counter)

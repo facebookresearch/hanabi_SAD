@@ -1,24 +1,13 @@
-// Copyright (c) Facebook, Inc. and its affiliates.
-// All rights reserved.
-//
-// This source code is licensed under the license found in the
-// LICENSE file in the root directory of this source tree.
-//
+// Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 #pragma once
 
-#include <math.h>
-#include <torch/script.h>
-
-#include "rela/actor.h"
-#include "rela/model_locker.h"
-#include "rela/prioritized_replay.h"
-#include "rela/utils.h"
+#include "transition.h"
 
 namespace rela {
 
-class MultiStepTransitionBuffer {
+class MultiStepBuffer {
  public:
-  MultiStepTransitionBuffer(int multiStep, int batchsize, float gamma)
+  MultiStepBuffer(int multiStep, int batchsize, float gamma)
       : multiStep_(multiStep)
       , batchsize_(batchsize)
       , gamma_(gamma) {
@@ -89,7 +78,7 @@ class MultiStepTransitionBuffer {
     }
 
     // calculate discounted rewards
-    torch::Tensor reward = torch::zeros_like(rewardHistory_.front());
+    auto reward = torch::zeros_like(rewardHistory_.front());
     auto accessor = reward.accessor<float, 1>();
     for (int i = 0; i < batchsize_; i++) {
       // if bootstrap, we only use the first nsAccessor[i]-1 (i.e. multiStep_-1)
@@ -127,90 +116,113 @@ class MultiStepTransitionBuffer {
   std::deque<torch::Tensor> terminalHistory_;
 };
 
-class DQNActor : public Actor {
+class R2D2Buffer {
  public:
-  DQNActor(std::shared_ptr<ModelLocker> modelLocker,
-           int multiStep,
-           int batchsize,
-           float gamma,
-           std::shared_ptr<FFPrioritizedReplay> replayBuffer)
-      : batchsize_(batchsize)
-      , modelLocker_(std::move(modelLocker))
-      , transitionBuffer_(multiStep, batchsize, gamma)
-      , replayBuffer_(replayBuffer)
-      , numAct_(0) {
+  R2D2Buffer(int batchsize, int numPlayer, int multiStep, int seqLen)
+      : batchsize(batchsize)
+      , numPlayer(numPlayer)
+      , multiStep(multiStep)
+      , seqLen(seqLen)
+      , batchNextIdx_(batchsize, 0)
+      , batchH0_(batchsize)
+      , batchSeqTransition_(batchsize, std::vector<FFTransition>(seqLen))
+      , batchSeqPriority_(batchsize, std::vector<float>(seqLen))
+      , batchLen_(batchsize, 0)
+      , canPop_(false) {
   }
 
-  // for single env evaluation
-  DQNActor(std::shared_ptr<ModelLocker> modelLocker)
-      : batchsize_(1)
-      , modelLocker_(std::move(modelLocker))
-      , transitionBuffer_(1, 1, 1)
-      , replayBuffer_(nullptr)
-      , numAct_(0) {
-  }
+  void push(
+      const FFTransition& transition,
+      const torch::Tensor& priority,
+      const TensorDict& /*hid*/) {
+    assert(priority.size(0) == batchsize);
 
-  int numAct() const {
-    return numAct_;
-  }
+    auto priorityAccessor = priority.accessor<float, 1>();
+    for (int i = 0; i < batchsize; ++i) {
+      int nextIdx = batchNextIdx_[i];
+      assert(nextIdx < seqLen && nextIdx >= 0);
+      if (nextIdx == 0) {
+        // TODO: !!! simplification for unconditional h0
+        // batchH0_[i] =
+        //     utils::tensorDictNarrow(hid, 1, i * numPlayer, numPlayer, false);
+      }
 
-  virtual TensorDict act(TensorDict& obs) override {
-    torch::NoGradGuard ng;
-    auto inputObs = utils::tensorDictToTorchDict(obs, modelLocker_->device);
-    TorchJitInput input;
-    input.push_back(inputObs);
+      auto t = transition.index(i);
+      // some sanity check for termination
+      if (nextIdx != 0) {
+        // should not append after terminal
+        // terminal should be processed when it is pushed
+        assert(!batchSeqTransition_[i][nextIdx - 1].terminal.item<bool>());
+        assert(batchLen_[i] == 0);
+      }
 
-    int id = -1;
-    auto model = modelLocker_->getModel(&id);
-    TorchJitOutput output = model.get_method("act")(input);
-    modelLocker_->releaseModel(id);
+      batchSeqTransition_[i][nextIdx] = t;
+      batchSeqPriority_[i][nextIdx] = priorityAccessor[i];
 
-    auto action = utils::iValueToTensorDict(output, torch::kCPU, true);
-    if (replayBuffer_ != nullptr) {
-      transitionBuffer_.pushObsAndAction(obs, action);
+      ++batchNextIdx_[i];
+      if (!t.terminal.item<bool>()) {
+        continue;
+      }
+
+      // pad the rest of the seq in case of terminal
+      batchLen_[i] = batchNextIdx_[i];
+      while (batchNextIdx_[i] < seqLen) {
+        batchSeqTransition_[i][batchNextIdx_[i]] = t.padLike();
+        batchSeqPriority_[i][batchNextIdx_[i]] = 0;
+        ++batchNextIdx_[i];
+      }
+      canPop_ = true;
     }
-
-    numAct_ += batchsize_;
-    return action;
   }
 
-  // r is float32 tensor, t is bool tensor
-  virtual void setRewardAndTerminal(torch::Tensor& r, torch::Tensor& t) override {
-    assert(replayBuffer_ != nullptr);
-    transitionBuffer_.pushRewardAndTerminal(r, t);
+  bool canPop() {
+    return canPop_;
   }
 
-  // should be called after setRewardAndTerminal
-  // Pops a batch of transitions and inserts it into the replay buffer
-  virtual void postStep() override {
-    assert(replayBuffer_ != nullptr);
-    if (!transitionBuffer_.canPop()) {
-      return;
+  std::tuple<std::vector<RNNTransition>, torch::Tensor, torch::Tensor> popTransition() {
+    assert(canPop_);
+
+    std::vector<RNNTransition> batchTransition;
+    std::vector<torch::Tensor> batchSeqPriority;
+    std::vector<float> batchLen;
+
+    for (int i = 0; i < batchsize; ++i) {
+      if (batchLen_[i] == 0) {
+        continue;
+      }
+      assert(batchNextIdx_[i] == seqLen);
+
+      batchSeqPriority.push_back(torch::tensor(batchSeqPriority_[i]));
+      batchLen.push_back((float)batchLen_[i]);
+      auto t = RNNTransition(
+          batchSeqTransition_[i], batchH0_[i], torch::tensor(float(batchLen_[i])));
+      batchTransition.push_back(t);
+
+      batchLen_[i] = 0;
+      batchNextIdx_[i] = 0;
     }
+    canPop_ = false;
+    assert(batchTransition.size() > 0);
 
-    auto transition = transitionBuffer_.popTransition();
-    auto priority = computePriority(transition);
-    replayBuffer_->add(transition, priority);
+    return std::make_tuple(
+        batchTransition,
+        torch::stack(batchSeqPriority, 1),  // batchdim = 1
+        torch::tensor(batchLen));
   }
+
+  const int batchsize;
+  const int numPlayer;
+  const int multiStep;
+  const int seqLen;
 
  private:
-  torch::Tensor computePriority(const FFTransition& sample) {
-    torch::NoGradGuard ng;
-    int id = -1;
-    auto input = sample.toJitInput(modelLocker_->device);
+  std::vector<int> batchNextIdx_;
+  std::vector<TensorDict> batchH0_;
 
-    auto model = modelLocker_->getModel(&id);
-    auto output = model.get_method("compute_priority")(input);
-    modelLocker_->releaseModel(id);
+  std::vector<std::vector<FFTransition>> batchSeqTransition_;
+  std::vector<std::vector<float>> batchSeqPriority_;
+  std::vector<int> batchLen_;
 
-    return output.toTensor().detach().to(torch::kCPU);
-  }
-
-  const int batchsize_;
-
-  std::shared_ptr<ModelLocker> modelLocker_;
-  MultiStepTransitionBuffer transitionBuffer_;
-  std::shared_ptr<FFPrioritizedReplay> replayBuffer_;
-  std::atomic<int> numAct_;
+  bool canPop_;
 };
-}  // namespace rela
+}

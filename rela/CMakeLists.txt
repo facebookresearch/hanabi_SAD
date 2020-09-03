@@ -19,22 +19,29 @@ find_package(PythonInterp 3.7 REQUIRED)
 find_package(PythonLibs 3.7 REQUIRED)
 find_package(Torch REQUIRED)
 
+# Temp fix for PyTorch 1.5.
+set(TORCH_PYTHON_LIBRARIES "${TorchPath}/lib/libtorch_python.so")
 
+# message(${CMAKE_CURRENT_SOURCE_DIR}/../)
 add_subdirectory(
   ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/pybind11 third_party/pybind11
 )
 
 
-# lib for other c++ programs
-add_library(_rela
-  types.cc
-)
-target_include_directories(_rela PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
-target_include_directories(_rela PUBLIC ${TORCH_INCLUDE_DIRS})
-target_include_directories(_rela PUBLIC ${PYTHON_INCLUDE_DIRS})
-target_link_libraries(_rela PUBLIC torch)
+# # lib for other c++ programs
+# add_library(_rela
+#   transition.cc
+# )
+# target_include_directories(_rela PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+# target_include_directories(_rela PUBLIC ${TORCH_INCLUDE_DIRS})
+# target_include_directories(_rela PUBLIC ${PYTHON_INCLUDE_DIRS})
+# target_link_libraries(_rela PUBLIC ${TORCH_LIBRARIES} ${TORCH_PYTHON_LIBRARIES} )
 
 
 # python lib
-pybind11_add_module(rela pybind.cc)
-target_link_libraries(rela PUBLIC _rela)
+pybind11_add_module(rela SHARED transition.cc pybind.cc)
+# target_link_libraries(rela PUBLIC _rela)
+target_include_directories(rela PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_include_directories(rela PUBLIC ${TORCH_INCLUDE_DIRS})
+target_include_directories(rela PUBLIC ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(rela PUBLIC ${TORCH_LIBRARIES} ${TORCH_PYTHON_LIBRARIES} )

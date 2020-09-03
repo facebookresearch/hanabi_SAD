@@ -5,12 +5,12 @@
 # LICENSE file in the root directory of this source tree.
 #
 #!/bin/bash
-python main.py \
+python selfplay.py \
        --save_dir exps/run0 \
        --method vdn \
-       --num_thread 80 \
+       --num_thread 10 \
        --num_game_per_thread 80 \
-       --greedy_extra 1 \
+       --sad 1 \
        --act_base_eps 0.1 \
        --act_eps_alpha 7 \
        --lr 6.25e-05 \

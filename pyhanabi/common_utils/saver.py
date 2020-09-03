@@ -1,9 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-#
 # model saver that saves top-k performing model
 import os
 import torch
@@ -20,7 +14,23 @@ class TopkSaver:
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
 
-    def save(self, model, state_dict, perf):
+    def save(self, model, state_dict, perf, save_latest=False, force_save_name=None):
+        if force_save_name is not None:
+            model_name = "%s.pthm" % force_save_name
+            weight_name = "%s.pthw" % force_save_name
+            if model is not None:
+                model.save(os.path.join(self.save_dir, model_name))
+            if state_dict is not None:
+                torch.save(state_dict, os.path.join(self.save_dir, weight_name))
+
+        if save_latest:
+            model_name = "latest.pthm"
+            weight_name = "latest.pthw"
+            if model is not None:
+                model.save(os.path.join(self.save_dir, model_name))
+            if state_dict is not None:
+                torch.save(state_dict, os.path.join(self.save_dir, weight_name))
+
         if perf <= self.worse_perf:
             # print('i am sorry')
             # [print(i) for i in self.perfs]

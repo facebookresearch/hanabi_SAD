@@ -1,9 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-#
 import os
 import random
 
@@ -13,12 +7,17 @@ from torch import nn
 from typing import Dict
 
 
-def get_all_files(root, file_extension):
+def get_all_files(root, file_extension, contain=None):
     files = []
     for folder, _, fs in os.walk(root):
         for f in fs:
-            if f.endswith(file_extension):
-                files.append(os.path.join(folder, f))
+            if file_extension is not None:
+                if f.endswith(file_extension):
+                    if contain is None or contain in os.path.join(folder, f):
+                        files.append(os.path.join(folder, f))
+            else:
+                if contain in f:
+                    files.append(os.path.join(folder, f))
     return files
 
 

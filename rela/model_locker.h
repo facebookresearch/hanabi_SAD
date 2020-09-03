@@ -1,29 +1,29 @@
-// Copyright (c) Facebook, Inc. and its affiliates.
-// All rights reserved.
-//
-// This source code is licensed under the license found in the
-// LICENSE file in the root directory of this source tree.
-//
+// Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+
 #pragma once
 
 #include <pybind11/pybind11.h>
-
-#include "rela/types.h"
 
 namespace rela {
 
 class ModelLocker {
  public:
-  ModelLocker(std::vector<py::object> pyModels, const std::string& device)
-      : device(torch::Device(device))
-      , pyModels_(pyModels)
-      , modelCallCounts_(pyModels.size(), 0)
+  ModelLocker(py::object pyModel, const std::string& deviceName, int numCopies)
+      : device(torch::Device(deviceName))
+      , modelCallCounts_(numCopies, 0)
       , latestModel_(0) {
-    // assert(pyModels_.size() > 1);
-    for (size_t i = 0; i < pyModels_.size(); ++i) {
-      models_.push_back(pyModels_[i].attr("_c").cast<TorchJitModel*>());
-      // modelCallCounts_.push_back(0);
+    for (int i = 0; i < numCopies; ++i) {
+      pyModels_.push_back(pyModel.attr("clone")(deviceName));
+      models_.push_back(pyModels_[i].attr("_c").cast<torch::jit::script::Module*>());
     }
+  }
+
+  ModelLocker(py::object pyModel, const std::string& deviceName)
+      : device(torch::Device(deviceName))
+      , modelCallCounts_(1, 0)
+      , latestModel_(0) {
+    pyModels_.push_back(pyModel);
+    models_.push_back(pyModels_[0].attr("_c").cast<torch::jit::script::Module*>());
   }
 
   void updateModel(py::object pyModel) {
@@ -39,7 +39,7 @@ class ModelLocker {
     lk.unlock();
   }
 
-  const TorchJitModel getModel(int* id) {
+  const torch::jit::script::Module& getModel(int* id) {
     std::lock_guard<std::mutex> lk(m_);
     *id = latestModel_;
     // std::cout << "using mdoel: " << latestModel_ << std::endl;
@@ -63,7 +63,7 @@ class ModelLocker {
   std::vector<int> modelCallCounts_;
   int latestModel_;
 
-  std::vector<TorchJitModel*> models_;
+  std::vector<torch::jit::script::Module*> models_;
   std::mutex m_;
   std::condition_variable cv_;
 };
