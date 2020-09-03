@@ -4,18 +4,19 @@
 
 The repo has been updated to include Other-Play, auxiliary task, as well as improved
 training infrastructure. The build process has also been significantly simplfied. It
-is no longer necessary to build pytorch from source and the code now works with newer
-version of pytorch and cuda. It also avoids the hanging problem that may appear in
+is no longer necessary to build pytorch from source (thanks to changes in pytorch1.5)
+and the code now works with newer version of pytorch and cuda. 
+It also avoids the hanging problem that may appear in
 previous version of the codebase on certain hardware configuration.
 
-## Intro
+## Introduction
 
 This repo contains code and models for
 ["Other-Play" for Zero-Shot Coordination](https://arxiv.org/abs/2003.02979)
 and [Simplified Action Decoder for Deep Multi-Agent
 Reinforcement Learning](https://arxiv.org/abs/1912.02288).
 
-To reference this work, please use:
+To reference these works, please use:
 
 Other-Play
 ```
@@ -43,7 +44,7 @@ Simplfied Action Decoder
 
 ## Compile
 We have been using pytorch-1.5.1, cuda-10.1, and cudnn-v7.6.5 in our development environment.
-Other setting may also work but we have not tested it extensively with different configurations.
+Other settings may also work but we have not tested it extensively under different configurations.
 
 ```bash
 # install pytorch
@@ -86,12 +87,17 @@ make -j10
 ## Run
 
 `hanabi/pyhanabi/tools` contains some example scripts to launch training
-runs. `dev.sh` requires 2 gpus to run, 1 for training, 1 for simulation while
-the rest require 3 gpus, 1 for training, 2 for simulation.
+runs. `dev.sh` is a fast lauching script for debugging. It needs 2 gpus to run,
+1 for training and 1 for simulation. Other scripts are examples for a more formal
+training run, they require 3 gpus, 1 for training and 2 for simulation.
 
-The important flags are `--sad 1` to enable `Simplified Action Decoder`,
-`--pred_weight 0.25` to enable auxiliary task and multiply aux loss with 0.25,
-and finally `--shuffle_color 1` to enable other-play.
+The important flags are:
+
+`--sad 1` to enable "Simplified Action Decoder";
+
+`--pred_weight 0.25` to enable auxiliary task and multiply aux loss with 0.25;
+
+`--shuffle_color 1` to enable other-play.
 
 ```bash
 cd pyhanabi
