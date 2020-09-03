@@ -1,9 +1,35 @@
-# Simplified Action Decoder in Hanabi
+# Other-Play & Simplified Action Decoder in Hanabi
 
-This repo contains code and models for [Simplified Action Decoder for
-Deep Multi-Agent Reinforcement Learning](https://arxiv.org/abs/1912.02288).
+## Important Update
+
+The repo has been updated to include Other-Play, auxiliary task, as well as improved
+training infrastructure. The build process has also been significantly simplfied. It
+is no longer necessary to build pytorch from source and the code now works with newer
+version of pytorch and cuda. It also avoids the hanging problem that may appear in
+previous version of the codebase on certain hardware configuration.
+
+## Intro
+
+This repo contains code and models for
+["Other-Play" for Zero-Shot Coordination](https://arxiv.org/abs/2003.02979)
+and [Simplified Action Decoder for Deep Multi-Agent
+Reinforcement Learning](https://arxiv.org/abs/1912.02288).
 
 To reference this work, please use:
+
+Other-Play
+```
+@misc{hu2020otherplay,
+    title={"Other-Play" for Zero-Shot Coordination},
+    author={Hengyuan Hu and Adam Lerer and Alex Peysakhovich and Jakob Foerster},
+    year={2020},
+    eprint={2003.02979},
+    archivePrefix={arXiv},
+    primaryClass={cs.AI}
+}
+```
+
+Simplfied Action Decoder
 ```
 @misc{hu2019simplified,
     title={Simplified Action Decoder for Deep Multi-Agent Reinforcement Learning},
@@ -16,46 +42,15 @@ To reference this work, please use:
 ```
 
 ## Compile
-
-### Prerequisite
-
-Install `cudnn7`, `cuda9.2` and `gcc7`. This might be
-platform dependent. Other versions might also work but we have only
-tested with the above versions. Note that we discovered a deadlock
-problem when using tensors with C++ multi-threading when using
-`cuda10.0` on Pascal GPU.
-
-### Build PyTorch from Source
-
-Create a fresh conda env & **compile PyTorch** from source.
-If PyTorch and this repo are compiled by compilers with
-different ABI compatibility, mysterious bugs that unexpectedly corrupt memory
-may occur. To avoid that, the current solution is to
-compile & install PyTorch from source first and then compile
-this repo against that PyTorch binary.
-For convenience, we paste instructions of compling PyTorch here.
+We have been using pytorch-1.5.1, cuda-10.1, and cudnn-v7.6.5 in our development environment.
+Other setting may also work but we have not tested it extensively with different configurations.
 
 ```bash
-# create a fresh conda environment with python3
-conda create --name [your env name] python=3.7
-conda activate [your env name]
+# install pytorch
+pip install torch==1.5.1+cu101 torchvision==0.6.1+cu101 -f https://download.pytorch.org/whl/torch_stable.html
 
-conda install numpy pyyaml mkl mkl-include setuptools cmake cffi typing
-conda install -c pytorch magma-cuda92
-
-# clone pytorch
-git clone -b v1.3.0 --recursive https://github.com/pytorch/pytorch
-cd pytorch
-
-export CMAKE_PREFIX_PATH=${CONDA_PREFIX:-"$(dirname $(which conda))/../"}
-# set cuda arch list so that the built binary can be run on both pascal and volta
-TORCH_CUDA_ARCH_LIST="6.0;7.0" python setup.py install
-```
-
-### Additional dependencies
-
-```bash
-pip install tensorboardX
+# install other dependencies
+pip install numpy
 pip install psutil
 
 # if the current cmake version is < 3.15
@@ -93,6 +88,10 @@ make -j10
 `hanabi/pyhanabi/tools` contains some example scripts to launch training
 runs. `dev.sh` requires 2 gpus to run, 1 for training, 1 for simulation while
 the rest require 3 gpus, 1 for training, 2 for simulation.
+
+The important flags are `--sad 1` to enable `Simplified Action Decoder`,
+`--pred_weight 0.25` to enable auxiliary task and multiply aux loss with 0.25,
+and finally `--shuffle_color 1` to enable other-play.
 
 ```bash
 cd pyhanabi

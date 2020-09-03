@@ -7,7 +7,7 @@
 #!/bin/bash
 python selfplay.py \
        --save_dir exps/run0 \
-       --method vdn \
+       --method iql \
        --num_thread 10 \
        --num_game_per_thread 80 \
        --sad 1 \
@@ -28,3 +28,5 @@ python selfplay.py \
        --eval_bomb 0 \
        --num_player 2 \
        --rnn_hid_dim 512 \
+       --act_device cuda:0 \
+       --shuffle_color 1 \

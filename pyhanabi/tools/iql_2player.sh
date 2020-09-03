@@ -5,12 +5,12 @@
 # LICENSE file in the root directory of this source tree.
 #
 #!/bin/bash
-python main.py \
+python selfplay.py \
        --save_dir exps/iql_2p \
        --num_thread 80 \
        --num_game_per_thread 80 \
        --method iql \
-       --greedy_extra 0 \
+       --sad 0 \
        --act_base_eps 0.1 \
        --act_eps_alpha 7 \
        --lr 6.25e-05 \
