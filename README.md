@@ -1,6 +1,6 @@
 # Other-Play & Simplified Action Decoder in Hanabi
 
-## Important Update
+## Important Update, Sep-2020
 
 The repo has been updated to include Other-Play, auxiliary task, as well as improved
 training infrastructure. The build process has also been significantly simplfied. It
