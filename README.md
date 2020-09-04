@@ -43,10 +43,14 @@ Simplfied Action Decoder
 ```
 
 ## Compile
-We have been using pytorch-1.5.1, cuda-10.1, and cudnn-v7.6.5 in our development environment.
+We have been using `pytorch-1.5.1`, `cuda-10.1`, and `cudnn-v7.6.5` in our development environment.
 Other settings may also work but we have not tested it extensively under different configurations.
-
+We also use `conda/miniconda` to manage environments.
 ```bash
+# create new conda env
+conda create -n hanabi python=3.7
+conda activate hanabi
+
 # install pytorch
 pip install torch==1.5.1+cu101 torchvision==0.6.1+cu101 -f https://download.pytorch.org/whl/torch_stable.html
 
