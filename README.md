@@ -20,14 +20,14 @@ To reference these works, please use:
 
 Other-Play
 ```
-@misc{hu2020otherplay,
-    title={"Other-Play" for Zero-Shot Coordination},
-    author={Hengyuan Hu and Adam Lerer and Alex Peysakhovich and Jakob Foerster},
-    year={2020},
-    eprint={2003.02979},
-    archivePrefix={arXiv},
-    primaryClass={cs.AI}
+@incollection{icml2020_5369,
+ author = {Hu, Hengyuan and Peysakhovich, Alexander and Lerer, Adam and Foerster, Jakob},
+ booktitle = {Proceedings of Machine Learning and Systems 2020},
+ pages = {9396--9407},
+ title = {\textquotedblleft Other-Play\textquotedblright  for Zero-Shot Coordination},
+ year = {2020}
 }
+
 ```
 
 Simplfied Action Decoder
