@@ -32,13 +32,13 @@ Other-Play
 
 Simplfied Action Decoder
 ```
-@misc{hu2019simplified,
-    title={Simplified Action Decoder for Deep Multi-Agent Reinforcement Learning},
-    author={Hengyuan Hu and Jakob N Foerster},
-    year={2019},
-    eprint={1912.02288},
-    archivePrefix={arXiv},
-    primaryClass={cs.AI}
+@inproceedings{
+Hu2020Simplified,
+title={Simplified Action Decoder for Deep Multi-Agent Reinforcement Learning},
+author={Hengyuan Hu and Jakob N Foerster},
+booktitle={International Conference on Learning Representations},
+year={2020},
+url={https://openreview.net/forum?id=B1xm3RVtwB}
 }
 ```
 
