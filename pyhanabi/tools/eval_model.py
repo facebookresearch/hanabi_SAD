@@ -19,7 +19,7 @@ from eval import evaluate
 
 
 def evaluate_legacy_model(
-    weight_files, num_game, seed, bomb, num_run=1, log_prefix=None, verbose=True
+    weight_files, num_game, seed, bomb, num_run=1, verbose=True
 ):
     # model_lockers = []
     # greedy_extra = 0
