@@ -12,6 +12,7 @@ lib_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(lib_path)
 
 import numpy as np
+import pandas as pd
 import torch
 import r2d2
 import utils
@@ -74,13 +75,45 @@ def evaluate_legacy_model(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--weight", default=None, type=str, required=True)
+    parser.add_argument("--weight_1", default=None, type=str, nargs='+', required=True)
+    parser.add_argument("--weight_2", default=None, type=str, nargs='+', required=True)
     parser.add_argument("--num_player", default=None, type=int, required=True)
     args = parser.parse_args()
+    print("weights_1 is ", args.weight_1)
+    print("weights_2 is ", args.weight_2)
+    
+    scores_arr = np.zeros([len(args.weight_1), len(args.weight_2)])
+    sem_arr = np.zeros([len(args.weight_1), len(args.weight_2)])
+    ag1_names, ag2_names = [], []
 
-    assert os.path.exists(args.weight)
-    # we are doing self player, all players use the same weight
-    weight_files = [args.weight for _ in range(args.num_player)]
+    ## check if everything in weights_1 exist
+    for ag1 in args.weight_1:
+        assert os.path.exists(ag1)
+        ag1_names.append(ag1.split("/")[2].split(".")[0])
 
-    # fast evaluation for 10k games
-    evaluate_legacy_model(weight_files, 1000, 1, 0, num_run=10)
+    ## check if everything in weights_2 exist
+    for ag2 in args.weight_2:
+        assert os.path.exists(ag2)
+        ag2_names.append(ag2.split("/")[2].split(".")[0])
+    
+    print("ag1 names is ", ag1_names)
+    print("ag2 names is ", ag2_names)
+
+    for ag1_idx, ag1 in enumerate(args.weight_1):
+        for ag2_idx, ag2 in enumerate(args.weight_2):
+            ## we are doing cross player, the 2 players use different weights
+            print("Current game is ", str(ag1_idx) + " vs " + str(ag2_idx))
+            weight_files = [ag1, ag2]
+            # # fast evaluation for 10k games
+            mean, sem, _ = evaluate_legacy_model(weight_files, 1000, 1, 0, num_run=10)
+            scores_arr[ag1_idx, ag2_idx] = mean
+            sem_arr[ag1_idx, ag2_idx] = sem 
+
+
+    scores_df = pd.DataFrame(data=scores_arr, index=ag1_names, columns=ag2_names)
+    sem_df = pd.DataFrame(data=sem_arr, index=ag1_names, columns=ag2_names)
+
+    scores_df.to_csv('scores_data.csv')
+    sem_df.to_csv('sem_data.csv')
+
+

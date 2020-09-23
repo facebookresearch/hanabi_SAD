@@ -9,12 +9,13 @@ import os
 import sys
 import argparse
 import pprint
+import pdb
 
 import numpy as np
 import torch
 from torch import nn
 
-from create import create_envs, create_threads, ActGroup
+from create_cont import create_envs, create_threads, ActGroup
 from eval import evaluate
 import common_utils
 import rela
@@ -31,7 +32,8 @@ def parse_args():
     parser.add_argument("--pred_weight", type=float, default=0)
     parser.add_argument("--num_eps", type=int, default=80)
 
-    parser.add_argument("--load_model", type=str, default="")
+    parser.add_argument("--load_learnable_model", type=str, default="")
+    parser.add_argument("--load_fixed_model", type=str, default="")
 
     parser.add_argument("--seed", type=int, default=10001)
     parser.add_argument("--gamma", type=float, default=0.99, help="discount factor")
@@ -123,8 +125,8 @@ if __name__ == "__main__":
         args.shuffle_obs,
         args.shuffle_color,
     )
-
-    agent = r2d2.R2D2Agent(
+## this is the learnable agent.
+    learnable_agent = r2d2.R2D2Agent(
         (args.method == "vdn"),
         args.multi_step,
         args.gamma,
@@ -137,17 +139,41 @@ if __name__ == "__main__":
         args.hand_size,
         False,  # uniform priority
     )
-    agent.sync_target_with_online()
+## this is for one fixed agent. TODO: in future -- list of fixed agents.
+    fixed_agent = r2d2.R2D2Agent(
+        (args.method == "vdn"),
+        args.multi_step,
+        args.gamma,
+        args.eta,
+        args.train_device,
+        games[0].feature_size(),
+        args.rnn_hid_dim,
+        games[0].num_action(),
+        args.num_lstm_layer,
+        args.hand_size,
+        False,  # uniform priority
+    )
 
-    if args.load_model:
-        print("*****loading pretrained model*****")
-        utils.load_weight(agent.online_net, args.load_model, args.train_device)
+    learnable_agent.sync_target_with_online()
+
+
+    if args.load_learnable_model:
+        print("*****loading pretrained model for learnable agent *****")
+        utils.load_weight(learnable_agent.online_net, args.load_learnable_model, args.train_device)
         print("*****done*****")
 
-    agent = agent.to(args.train_device)
-    optim = torch.optim.Adam(agent.online_net.parameters(), lr=args.lr, eps=args.eps)
-    print(agent)
-    eval_agent = agent.clone(args.train_device, {"vdn": False})
+    if args.load_fixed_model:
+        print("*****loading pretrained model for fixed agent *****")
+        utils.load_weight(fixed_agent.online_net, args.load_fixed_model, args.train_device)
+        print("*****done*****")
+
+    # pdb.set_trace()
+    learnable_agent = learnable_agent.to(args.train_device)
+    fixed_agent = fixed_agent.to(args.train_device)
+    
+    optim = torch.optim.Adam(learnable_agent.online_net.parameters(), lr=args.lr, eps=args.eps)
+    print(learnable_agent)
+    eval_agent = learnable_agent.clone(args.train_device, {"vdn": False})
 
     replay_buffer = rela.RNNPrioritizedReplay(
         args.replay_buffer_size,
@@ -160,7 +186,7 @@ if __name__ == "__main__":
     act_group = ActGroup(
         args.method,
         args.act_device,
-        agent,
+        [learnable_agent, fixed_agent],
         args.num_thread,
         args.num_game_per_thread,
         args.multi_step,
@@ -202,9 +228,9 @@ if __name__ == "__main__":
         for batch_idx in range(args.epoch_len):
             num_update = batch_idx + epoch * args.epoch_len
             if num_update % args.num_update_between_sync == 0:
-                agent.sync_target_with_online()
+                learnable_agent.sync_target_with_online()
             if num_update % args.actor_sync_freq == 0:
-                act_group.update_model(agent)
+                act_group.update_model(learnable_agent)
 
             torch.cuda.synchronize()
             stopwatch.time("sync and updating")
@@ -212,7 +238,7 @@ if __name__ == "__main__":
             batch, weight = replay_buffer.sample(args.batchsize, args.train_device)
             stopwatch.time("sample data")
 
-            loss, priority = agent.loss(batch, args.pred_weight, stat)
+            loss, priority = learnable_agent.loss(batch, args.pred_weight, stat)
             priority = rela.aggregate_priority(
                 priority.cpu(), batch.seq_len.cpu(), args.eta
             )
@@ -223,7 +249,7 @@ if __name__ == "__main__":
             stopwatch.time("forward & backward")
 
             g_norm = torch.nn.utils.clip_grad_norm_(
-                agent.online_net.parameters(), args.grad_clip
+                learnable_agent.online_net.parameters(), args.grad_clip
             )
             optim.step()
             optim.zero_grad()
@@ -235,7 +261,7 @@ if __name__ == "__main__":
             stopwatch.time("updating priority")
 
             stat["loss"].feed(loss.detach().item())
-            stat["grad_norm"].feed(g_norm.detach().item())
+            stat["grad_norm"].feed(g_norm)
 
         count_factor = args.num_player if args.method == "vdn" else 1
         print("EPOCH: %d" % epoch)
@@ -247,9 +273,9 @@ if __name__ == "__main__":
 
         context.pause()
         eval_seed = (9917 + epoch * 999999) % 7777777
-        eval_agent.load_state_dict(agent.state_dict())
+        eval_agent.load_state_dict(learnable_agent.state_dict())
         score, perfect, *_ = evaluate(
-            [eval_agent for _ in range(args.num_player)],
+            [eval_agent, fixed_agent],
             1000,
             eval_seed,
             args.eval_bomb,
@@ -260,12 +286,14 @@ if __name__ == "__main__":
             force_save_name = "model_epoch%d" % epoch
         else:
             force_save_name = None
-        model_saved = saver.save(
-            None, agent.online_net.state_dict(), score, force_save_name=force_save_name
-        )
+        if epoch % 10 == 0:
+            model_saved = saver.save(
+                None, learnable_agent.online_net.state_dict(), score, force_save_name=force_save_name
+            )
+            print("model saved: %s "%(model_saved))
         print(
-            "epoch %d, eval score: %.4f, perfect: %.2f, model saved: %s"
-            % (epoch, score, perfect * 100, model_saved)
+            "epoch %d, eval score: %.4f, perfect: %.2f"
+            % (epoch, score, perfect * 100)
         )
         context.resume()
         print("==========")

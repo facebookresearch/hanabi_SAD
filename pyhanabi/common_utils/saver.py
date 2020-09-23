@@ -15,6 +15,7 @@ class TopkSaver:
             os.makedirs(save_dir)
 
     def save(self, model, state_dict, perf, save_latest=False, force_save_name=None):
+        print("worst perf idx inside save is ", self.worse_perf_idx)
         if force_save_name is not None:
             model_name = "%s.pthm" % force_save_name
             weight_name = "%s.pthw" % force_save_name

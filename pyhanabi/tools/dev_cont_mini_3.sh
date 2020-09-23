@@ -5,12 +5,14 @@
 # LICENSE file in the root directory of this source tree.
 #
 #!/bin/bash
-python selfplay.py \
-       --save_dir exps/run0 \
+python contplay_complete.py \
+       --save_dir /network/tmp1/badrinaa/hanabi_sad_models/exps/iql_2p_3 \
        --method iql \
        --num_thread 10 \
+       --load_learnable_model ../models/iql_2p_3.pthw \
+       --load_fixed_model ../models/iql_2p_1.pthw ../models/iql_2p_4.pthw ../models/iql_2p_5.pthw \
        --num_game_per_thread 80 \
-       --sad 1 \
+       --sad 0 \
        --act_base_eps 0.1 \
        --act_eps_alpha 7 \
        --lr 6.25e-05 \
@@ -21,7 +23,7 @@ python selfplay.py \
        --batchsize 128 \
        --burn_in_frames 5000 \
        --replay_buffer_size 65536 \
-       --epoch_len 400 \
+       --epoch_len 200 \
        --priority_exponent 0.9 \
        --priority_weight 0.6 \
        --train_bomb 0 \
@@ -29,4 +31,4 @@ python selfplay.py \
        --num_player 2 \
        --rnn_hid_dim 512 \
        --act_device cuda:0,cuda:1 \
-       --shuffle_color 1 \
+       --shuffle_color 0 \
