@@ -58,7 +58,7 @@ class R2D2Actor {
     return numAct_;
   }
 
-  virtual TensorDict act(TensorDict& obs) {
+  virtual TensorDict act(const TensorDict& obs) {
     // std::cout << ":: start c++ act ::" << std::endl;
     torch::NoGradGuard ng;
     assert(!hidden_.empty());
@@ -100,7 +100,7 @@ class R2D2Actor {
   }
 
   // r is float32 tensor, t is byte tensor
-  virtual void postAct(torch::Tensor& r, torch::Tensor& t) {
+  virtual void postAct(const torch::Tensor& r, const torch::Tensor& t) {
     if (replayBuffer_ == nullptr) {
       return;
     }

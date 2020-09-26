@@ -83,7 +83,9 @@ class Batcher {
   Batcher& operator=(const Batcher&) = delete;
 
   ~Batcher() {
-    exit();
+    if (!exit_) {
+      exit();
+    }
   }
 
   void exit() {
@@ -92,6 +94,11 @@ class Batcher {
       exit_ = true;
     }
     cvGetBatch_.notify_all();
+  }
+
+  void reset() {
+    assert(exit_ == true);
+    exit_ = false;
   }
 
   bool terminated() {

@@ -13,7 +13,7 @@ class MultiStepBuffer {
       , gamma_(gamma) {
   }
 
-  void pushObsAndAction(TensorDict& obs, TensorDict& action) {
+  void pushObsAndAction(const TensorDict& obs, const TensorDict& action) {
     assert((int)obsHistory_.size() <= multiStep_);
     assert((int)actionHistory_.size() <= multiStep_);
 
@@ -21,7 +21,7 @@ class MultiStepBuffer {
     actionHistory_.push_back(action);
   }
 
-  void pushRewardAndTerminal(torch::Tensor& reward, torch::Tensor& terminal) {
+  void pushRewardAndTerminal(const torch::Tensor& reward, const torch::Tensor& terminal) {
     assert(rewardHistory_.size() == terminalHistory_.size());
     assert(rewardHistory_.size() == obsHistory_.size() - 1);
     assert(reward.dim() == 1 && terminal.dim() == 1);

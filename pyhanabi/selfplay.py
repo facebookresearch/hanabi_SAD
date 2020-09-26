@@ -9,6 +9,7 @@ import os
 import sys
 import argparse
 import pprint
+import gc
 
 import numpy as np
 import torch
@@ -147,7 +148,6 @@ if __name__ == "__main__":
     agent = agent.to(args.train_device)
     optim = torch.optim.Adam(agent.online_net.parameters(), lr=args.lr, eps=args.eps)
     print(agent)
-    eval_agent = agent.clone(args.train_device, {"vdn": False})
 
     replay_buffer = rela.RNNPrioritizedReplay(
         args.replay_buffer_size,
@@ -191,6 +191,12 @@ if __name__ == "__main__":
     stat = common_utils.MultiCounter(args.save_dir)
     tachometer = utils.Tachometer()
     stopwatch = common_utils.Stopwatch()
+
+    eval_agent = agent.clone(args.train_device, {"vdn": False})
+    eval_runners = [
+        rela.BatchRunner(eval_agent, "cuda:0", 1000, ["act"])
+        for _ in range(args.num_player)
+    ]
 
     for epoch in range(args.num_epoch):
         print("beginning of epoch: ", epoch)
@@ -247,14 +253,16 @@ if __name__ == "__main__":
 
         context.pause()
         eval_seed = (9917 + epoch * 999999) % 7777777
-        eval_agent.load_state_dict(agent.state_dict())
+        for runner in eval_runners:
+            runner.update_model(agent)
         score, perfect, *_ = evaluate(
-            [eval_agent for _ in range(args.num_player)],
+            None,
             1000,
             eval_seed,
             args.eval_bomb,
             0,  # explore eps
             args.sad,
+            runners=eval_runners,
         )
         if epoch > 0 and epoch % 50 == 0:
             force_save_name = "model_epoch%d" % epoch
@@ -267,5 +275,7 @@ if __name__ == "__main__":
             "epoch %d, eval score: %.4f, perfect: %.2f, model saved: %s"
             % (epoch, score, perfect * 100, model_saved)
         )
+
+        gc.collect()
         context.resume()
         print("==========")

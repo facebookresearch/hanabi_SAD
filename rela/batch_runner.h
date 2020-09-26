@@ -44,8 +44,14 @@ class BatchRunner {
   }
 
   void start() {
-    for (auto& name : methods_) {
-      batchers_.emplace(name, std::make_unique<Batcher>(batchsize_));
+    if (batchers_.empty()) {
+      for (auto& name : methods_) {
+        batchers_.emplace(name, std::make_unique<Batcher>(batchsize_));
+      }
+    } else {
+      for (auto& kv : batchers_) {
+        kv.second->reset();
+      }
     }
 
     for (auto& kv : batchers_) {
@@ -54,10 +60,10 @@ class BatchRunner {
   }
 
   void stop() {
-    // for (auto& kv : batchers_) {
-    //   kv.second->exit();
-    // }
-    batchers_.clear();
+    for (auto& kv : batchers_) {
+      kv.second->exit();
+    }
+    // batchers_.clear();
 
     for (auto& v : threads_) {
       v.join();
