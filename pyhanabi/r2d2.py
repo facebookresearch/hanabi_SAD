@@ -34,7 +34,7 @@ class R2D2Net(torch.jit.ScriptModule):
         self.fc_a = nn.Linear(self.hid_dim, self.out_dim)
 
         # for aux task
-        self.pred_1st = nn.Linear(self.hid_dim, self.hand_size * 3)
+        self.pred = nn.Linear(self.hid_dim, self.hand_size * 3)
 
     @torch.jit.script_method
     def get_h0(self, batchsize: int) -> Dict[str, torch.Tensor]:
@@ -128,7 +128,7 @@ class R2D2Net(torch.jit.ScriptModule):
         return xent, avg_xent, q, seq_xent.detach()
 
     def pred_loss_1st(self, lstm_o, target, hand_slot_mask, seq_len):
-        return self.cross_entropy(self.pred_1st, lstm_o, target, hand_slot_mask, seq_len)
+        return self.cross_entropy(self.pred, lstm_o, target, hand_slot_mask, seq_len)
 
 
 class R2D2Agent(torch.jit.ScriptModule):
@@ -379,7 +379,7 @@ class R2D2Agent(torch.jit.ScriptModule):
         err = (target.detach() - online_qa) * mask
         return err, lstm_o
 
-    def aux_task_iql(self, lstm_o, hand, partner_index, seq_len, rl_loss_size, stat):
+    def aux_task_iql(self, lstm_o, hand, seq_len, rl_loss_size, stat):
         seq_size, bsize, _ = hand.size()
         own_hand = hand.view(seq_size, bsize, self.online_net.hand_size, 3)
         own_hand_slot_mask = own_hand.sum(3)
@@ -445,12 +445,11 @@ class R2D2Agent(torch.jit.ScriptModule):
                 pred_loss = self.aux_task_iql(
                     lstm_o,
                     batch.obs["own_hand"],
-                    batch.obs["partner_index"],
                     batch.seq_len,
                     rl_loss.size(),
                     stat,
                 )
-                loss = rl_loss + pred_weight *pred_loss
+                loss = rl_loss + pred_weight * pred_loss
         else:
             loss = rl_loss
         return loss, priority
