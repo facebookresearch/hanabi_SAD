@@ -13,7 +13,8 @@ unzip op.zip
 We also include the model evaluation data in `models/op_raw_data.txt`. The data in
 this file is used for Figure 4 and Table 1 in the paper.
 
-We updated the evaluation script to allow both self-play and cross-play evaluation.
+We updated the evaluation script to allow both self-play and cross-play evaluation
+using the new other-play models.
 ```shell
 # assume current work directory is pyhanabi
 # method can be sad, sad-op, sad-aux, sad-aux-op
