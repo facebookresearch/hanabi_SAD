@@ -12,3 +12,4 @@ sweep*.py
 *.ipynb*
 models/*
 !models/download.sh
+!models/op_raw_data.txt

@@ -1,11 +1,37 @@
 # Other-Play & Simplified Action Decoder in Hanabi
 
+## Important Update, Feb-2021
+
+We uploaded the models from the Other-Play paper. To get those models, run the
+updated `download.sh` in the `models` folder. If you only need the Other-Play
+models, you can download them by running the following command from the `models` folder
+```shell
+wget https://dl.fbaipublicfiles.com/hanabi_op/op.zip
+unzip op.zip
+```
+
+We also include the model evaluation data in `models/op_raw_data.txt`. The data in
+this file is used for Figure 4 and Table 1 in the paper.
+
+We updated the evaluation script to allow both self-play and cross-play evaluation.
+```shell
+# assume current work directory is pyhanabi
+# method can be sad, sad-op, sad-aux, sad-aux-op
+# idx1/idx2 ranges from [0, 11], corresponding to the 12 models.
+python tools/eval_model.py --paper op --method sad-aux --idx1 0 --idx2 0
+```
+The evaluation script assumes that the models are saved in the `$ROOT/models` folder.
+
+The model used for human evaluation in the paper was `models/op/sad-aux-op/M1.pthw`, which
+was the model with the highest cross-play score and trained with the best method.
+
+
 ## Important Update, Sep-2020
 
 The repo has been updated to include Other-Play, auxiliary task, as well as improved
 training infrastructure. The build process has also been significantly simplfied. It
 is no longer necessary to build pytorch from source (thanks to changes in pytorch1.5)
-and the code now works with newer version of pytorch and cuda. 
+and the code now works with newer version of pytorch and cuda.
 It also avoids the hanging problem that may appear in
 previous version of the codebase on certain hardware configuration.
 

@@ -18,15 +18,8 @@ import utils
 from eval import evaluate
 
 
-def evaluate_legacy_model(
-    weight_files, num_game, seed, bomb, num_run=1, verbose=True
-):
-    # model_lockers = []
-    # greedy_extra = 0
+def load_sad_model(weight_files):
     agents = []
-    num_player = len(weight_files)
-    assert num_player > 1, "1 weight file per player"
-
     for weight_file in weight_files:
         if verbose:
             print(
@@ -38,7 +31,6 @@ def evaluate_legacy_model(
             sad = False
 
         device = "cuda:0"
-
         state_dict = torch.load(weight_file)
         input_dim = state_dict["net.0.weight"].size()[1]
         hid_dim = 512
@@ -49,6 +41,62 @@ def evaluate_legacy_model(
         ).to(device)
         utils.load_weight(agent.online_net, weight_file, device)
         agents.append(agent)
+    return agents
+
+
+def load_op_model(method, idx1, idx2):
+    """load op models, op models was trained only for 2 player
+    """
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    # assume model saved in root/models/op
+    folder = os.path.join(root, "models", "op", method)
+    agents = []
+    for idx in [idx1, idx2]:
+        if idx >= 0 and idx < 3:
+            num_fc = 1
+            skip_connect = False
+        elif idx >= 3 and idx < 6:
+            num_fc = 1
+            skip_connect = True
+        elif idx >= 6 and idx < 9:
+            num_fc = 2
+            skip_connect = False
+        else:
+            num_fc = 2
+            skip_connect = True
+        weight_file = os.path.join(folder, f"M{idx}.pthw")
+        if not os.path.exists(weight_file):
+            print(f"Cannot find weight at: {weight_file}")
+            assert False
+
+        device = "cuda:0"
+        state_dict = torch.load(weight_file)
+        input_dim = state_dict["net.0.weight"].size()[1]
+        hid_dim = 512
+        output_dim = state_dict["fc_a.weight"].size()[0]
+        agent = r2d2.R2D2Agent(
+            False,
+            3,
+            0.999,
+            0.9,
+            device,
+            input_dim,
+            hid_dim,
+            output_dim,
+            2,
+            5,
+            False,
+            num_fc_layer=num_fc,
+            skip_connect=skip_connect,
+        ).to(device)
+        utils.load_weight(agent.online_net, weight_file, device)
+        agents.append(agent)
+    return agents
+
+
+def evaluate_legacy_model(agents, num_game, seed, bomb, num_run=1, verbose=True):
+    num_player = len(agents)
+    assert num_player > 1, "1 weight file per player"
 
     scores = []
     perfect = 0
@@ -59,7 +107,7 @@ def evaluate_legacy_model(
             num_game * i + seed,
             bomb,
             0,
-            sad,
+            True,  # in op paper, sad was a default
         )
         scores.extend(score)
         perfect += p
@@ -74,13 +122,30 @@ def evaluate_legacy_model(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--weight", default=None, type=str, required=True)
-    parser.add_argument("--num_player", default=None, type=int, required=True)
+    parser.add_argument("--paper", default="sad", type=str, help="sad/op")
+    parser.add_argument("--num_game", default=5000, type=int)
+    parser.add_argument(
+        "--num_run", default=1, type=int, help="total num game = num_game * num_run"
+    )
+    # config for model from sad paper
+    parser.add_argument("--weight", default=None, type=str)
+    parser.add_argument("--num_player", default=None, type=int)
+    # config for model from op paper
+    parser.add_argument(
+        "--method", default="sad-aux-op", type=str, help="sad-aux-op/sad-aux/sad-op/sad"
+    )
+    parser.add_argument("--idx1", default=1, type=int, help="which model to use?")
+    parser.add_argument("--idx2", default=1, type=int)
+
     args = parser.parse_args()
 
-    assert os.path.exists(args.weight)
-    # we are doing self player, all players use the same weight
-    weight_files = [args.weight for _ in range(args.num_player)]
+    if args.paper == "sad":
+        assert os.path.exists(args.weight)
+        # we are doing self player, all players use the same weight
+        weight_files = [args.weight for _ in range(args.num_player)]
+        agents = load_sad_model(weight_files)
+    elif args.paper == "op":
+        agents = load_op_model(args.method, args.idx1, args.idx2)
 
-    # fast evaluation for 10k games
-    evaluate_legacy_model(weight_files, 1000, 1, 0, num_run=10)
+        # fast evaluation for 10k games
+    evaluate_legacy_model(agents, args.num_game, 1, 0, num_run=args.num_run)

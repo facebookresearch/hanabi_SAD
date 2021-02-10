@@ -5,7 +5,11 @@
 # LICENSE file in the root directory of this source tree.
 #
 
+# op models
+wget https://dl.fbaipublicfiles.com/hanabi_op/op.zip
+unzip op.zip
+
+# sad models
 wget https://dl.fbaipublicfiles.com/hanabi_sad/models.zip
 unzip models.zip
-mv models/* ./
-rm -r models
+mv models sad_models
