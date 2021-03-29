@@ -16,13 +16,13 @@ import r2d2
 import utils
 
 
-def evaluate(agents, num_game, seed, bomb, eps, sad, *, hand_size=5, runners=None):
+def evaluate(agents, num_game, seed, bomb, eps, sad, *, hand_size=5, runners=None, device="cuda:0"):
     """
     evaluate agents as long as they have a "act" function
     """
     assert agents is None or runners is None
     if agents is not None:
-        runners = [rela.BatchRunner(agent, "cuda:0", 1000, ["act"]) for agent in agents]
+        runners = [rela.BatchRunner(agent, device, 1000, ["act"]) for agent in agents]
     num_player = len(runners)
 
     context = rela.Context()
