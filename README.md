@@ -1,14 +1,14 @@
 # Other-Play & Simplified Action Decoder in Hanabi
 
 ## Important Update, Mar-2021
-We uploaded one off-belief-learning (OBL) model from our recent [arxiv
+We uploaded one off-belief-learning (OBL) model from our recent [
 paper](https://arxiv.org/pdf/2103.04000.pdf). To get this model, go to
 `hanabi_SAD/models` and run
 ```shell
 wget https://dl.fbaipublicfiles.com/hanabi_op/obl.zip
 unzip obl.zip
 ```
-To use this moel, go to `hanabi_SAD/pyhanabi` and run
+To use this model, go to `hanabi_SAD/pyhanabi` and run
 ```shell
 python tools/eval_model.py --paper obl --num_game 5000
 ```
