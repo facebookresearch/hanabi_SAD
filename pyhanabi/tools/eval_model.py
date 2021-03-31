@@ -16,6 +16,7 @@ import torch
 import r2d2
 import utils
 from eval import evaluate
+from obl_model import obl_model
 
 
 def load_sad_model(weight_files, device):
@@ -88,7 +89,7 @@ def load_op_model(method, idx1, idx2, device):
     return agents
 
 
-def evaluate_legacy_model(agents, num_game, seed, bomb, device, num_run=1, verbose=True):
+def evaluate_agents(agents, num_game, seed, bomb, device, num_run=1, verbose=True):
     num_player = len(agents)
     assert num_player > 1, "1 weight file per player"
 
@@ -117,7 +118,7 @@ def evaluate_legacy_model(agents, num_game, seed, bomb, device, num_run=1, verbo
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--paper", default="sad", type=str, help="sad/op")
+    parser.add_argument("--paper", default="sad", type=str, help="sad/op/obl")
     parser.add_argument("--num_game", default=5000, type=int)
     parser.add_argument(
         "--num_run", default=1, type=int, help="total num game = num_game * num_run"
@@ -142,8 +143,10 @@ if __name__ == "__main__":
         agents = load_sad_model(weight_files, args.device)
     elif args.paper == "op":
         agents = load_op_model(args.method, args.idx1, args.idx2, args.device)
+    elif args.paper == "obl":
+        agents = [obl_model, obl_model]
 
     # fast evaluation for 5k games
-    evaluate_legacy_model(
+    evaluate_agents(
         agents, args.num_game, 1, 0, num_run=args.num_run, device=args.device
     )
