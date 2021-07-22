@@ -27,20 +27,20 @@ class R2D2Net(torch.jit.ScriptModule):
         out_dim,
         num_lstm_layer,
         hand_size,
-        num_ff_layer,
+        num_fc_layer,
         skip_connect,
     ):
         super().__init__()
         self.in_dim = in_dim
         self.hid_dim = hid_dim
         self.out_dim = out_dim
-        self.num_ff_layer = num_ff_layer
+        self.num_fc_layer = num_fc_layer
         self.num_lstm_layer = num_lstm_layer
         self.hand_size = hand_size
         self.skip_connect = skip_connect
 
         ff_layers = [nn.Linear(self.in_dim, self.hid_dim), nn.ReLU()]
-        for i in range(1, self.num_ff_layer):
+        for i in range(1, self.num_fc_layer):
             ff_layers.append(nn.Linear(self.hid_dim, self.hid_dim))
             ff_layers.append(nn.ReLU())
         self.net = nn.Sequential(*ff_layers)

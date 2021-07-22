@@ -19,76 +19,6 @@ from eval import evaluate
 from obl_model import obl_model
 
 
-def load_sad_model(weight_files, device):
-    agents = []
-    for weight_file in weight_files:
-        if "sad" in weight_file or "aux" in weight_file:
-            sad = True
-        else:
-            sad = False
-
-        state_dict = torch.load(weight_file, map_location=device)
-        input_dim = state_dict["net.0.weight"].size()[1]
-        hid_dim = 512
-        output_dim = state_dict["fc_a.weight"].size()[0]
-
-        agent = r2d2.R2D2Agent(
-            False, 3, 0.999, 0.9, device, input_dim, hid_dim, output_dim, 2, 5, False
-        ).to(device)
-        utils.load_weight(agent.online_net, weight_file, device)
-        agents.append(agent)
-    return agents
-
-
-def load_op_model(method, idx1, idx2, device):
-    """load op models, op models was trained only for 2 player
-    """
-    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    # assume model saved in root/models/op
-    folder = os.path.join(root, "models", "op", method)
-    agents = []
-    for idx in [idx1, idx2]:
-        if idx >= 0 and idx < 3:
-            num_fc = 1
-            skip_connect = False
-        elif idx >= 3 and idx < 6:
-            num_fc = 1
-            skip_connect = True
-        elif idx >= 6 and idx < 9:
-            num_fc = 2
-            skip_connect = False
-        else:
-            num_fc = 2
-            skip_connect = True
-        weight_file = os.path.join(folder, f"M{idx}.pthw")
-        if not os.path.exists(weight_file):
-            print(f"Cannot find weight at: {weight_file}")
-            assert False
-
-        state_dict = torch.load(weight_file)
-        input_dim = state_dict["net.0.weight"].size()[1]
-        hid_dim = 512
-        output_dim = state_dict["fc_a.weight"].size()[0]
-        agent = r2d2.R2D2Agent(
-            False,
-            3,
-            0.999,
-            0.9,
-            device,
-            input_dim,
-            hid_dim,
-            output_dim,
-            2,
-            5,
-            False,
-            num_fc_layer=num_fc,
-            skip_connect=skip_connect,
-        ).to(device)
-        utils.load_weight(agent.online_net, weight_file, device)
-        agents.append(agent)
-    return agents
-
-
 def evaluate_agents(agents, num_game, seed, bomb, device, num_run=1, verbose=True):
     num_player = len(agents)
     assert num_player > 1, "1 weight file per player"
@@ -140,9 +70,9 @@ if __name__ == "__main__":
         assert os.path.exists(args.weight)
         # we are doing self player, all players use the same weight
         weight_files = [args.weight for _ in range(args.num_player)]
-        agents = load_sad_model(weight_files, args.device)
+        agents = utils.load_sad_model(weight_files, args.device)
     elif args.paper == "op":
-        agents = load_op_model(args.method, args.idx1, args.idx2, args.device)
+        agents = utils.load_op_model(args.method, args.idx1, args.idx2, args.device)
     elif args.paper == "obl":
         agents = [obl_model, obl_model]
 
