@@ -16,7 +16,7 @@ import torch
 import r2d2
 import utils
 from eval import evaluate
-from obl_model import obl_model
+from obl_model import load_obl_model
 
 
 def evaluate_agents(agents, num_game, seed, bomb, device, num_run=1, verbose=True):
@@ -63,6 +63,7 @@ if __name__ == "__main__":
     parser.add_argument("--idx1", default=1, type=int, help="which model to use?")
     parser.add_argument("--idx2", default=1, type=int)
     parser.add_argument("--device", default="cuda:0", type=str)
+    parser.add_argument("--obl_path", default=None, type=str)
 
     args = parser.parse_args()
 
@@ -74,6 +75,7 @@ if __name__ == "__main__":
     elif args.paper == "op":
         agents = utils.load_op_model(args.method, args.idx1, args.idx2, args.device)
     elif args.paper == "obl":
+        obl_model = load_obl_model(args.obl_path)
         agents = [obl_model, obl_model]
 
     # fast evaluation for 5k games

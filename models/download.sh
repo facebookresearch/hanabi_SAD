@@ -6,6 +6,9 @@
 #
 
 # obl models
+wget https://dl.fbaipublicfiles.com/hanabi_op/all_obl_models.zip
+unzip all_obl_models.zip
+
 wget https://dl.fbaipublicfiles.com/hanabi_op/obl.zip
 unzip obl.zip
 

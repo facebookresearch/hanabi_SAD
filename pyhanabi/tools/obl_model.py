@@ -1,3 +1,4 @@
+import os
 from collections import OrderedDict
 import torch
 import torch.nn as nn
@@ -308,18 +309,22 @@ obl_model = R2D2Agent(
 )
 
 
-import os
-root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-model_file = os.path.join(root, 'models', 'obl', 'obl.pthw')
-state_dict = torch.load(model_file)
-state_dict.pop("core_ffn.1.weight")
-state_dict.pop("core_ffn.1.bias")
-state_dict.pop("core_ffn.3.weight")
-state_dict.pop("core_ffn.3.bias")
-state_dict.pop("pred_2nd.weight")
-state_dict.pop("pred_2nd.bias")
-state_dict.pop("pred_t.weight")
-state_dict.pop("pred_t.bias")
+def load_obl_model(model_file=None):
+    if model_file is None:
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        model_file = os.path.join(root, 'models', 'obl', 'obl.pthw')
 
-obl_model.online_net.load_state_dict(state_dict)
-obl_model.sync_target_with_online()
+    state_dict = torch.load(model_file)
+    if "core_ffn.1.weight" in state_dict:
+        state_dict.pop("core_ffn.1.weight")
+        state_dict.pop("core_ffn.1.bias")
+        state_dict.pop("core_ffn.3.weight")
+        state_dict.pop("core_ffn.3.bias")
+        state_dict.pop("pred_2nd.weight")
+        state_dict.pop("pred_2nd.bias")
+        state_dict.pop("pred_t.weight")
+        state_dict.pop("pred_t.bias")
+
+    obl_model.online_net.load_state_dict(state_dict)
+    obl_model.sync_target_with_online()
+    return obl_model
